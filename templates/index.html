@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Router Diagnostics | HCDC</title>
+<style>
+:root{--navy:#0a2463;--blue:#1e4fb8;--red:#c8102e;--bg:#f3f5fa;--card:#fff;--ink:#1b2437;--mute:#5b667d;--line:#d9dfec;--ok:#12803c;--font:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;--mono:"Cascadia Mono",Consolas,"Courier New",monospace}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:var(--font);color:var(--ink);background:var(--bg)}
+header{background:var(--navy);color:#fff;border-bottom:4px solid var(--red)}
+.top{max-width:1200px;margin:0 auto;padding:14px 22px;display:flex;align-items:center;gap:14px}
+.crest{width:46px;height:46px;border-radius:50%;background:#fff;display:grid;place-items:center;flex:none;border:3px solid var(--red)}
+.crest::before{content:"";width:20px;height:26px;background:linear-gradient(var(--navy),var(--navy)) center/6px 100% no-repeat,linear-gradient(var(--navy),var(--navy)) center 8px/100% 6px no-repeat}
+.top h1{margin:0;font-size:18px;letter-spacing:.3px}
+.top p{margin:2px 0 0;font-size:12px;color:#c9d6f5;font-style:italic}
+.top .sys{margin-left:auto;text-align:right;font-size:13px;color:#dbe5ff}
+.top .sys b{display:block;font-size:15px;color:#fff}
+.wrap{max-width:1200px;margin:0 auto;padding:22px;display:grid;grid-template-columns:320px 1fr;gap:22px;align-items:start}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:18px;box-shadow:0 1px 3px rgba(10,36,99,.06)}
+.card h3{margin:0;padding:11px 16px;font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--navy);background:#eaeff9;border-bottom:1px solid var(--line)}
+.row{display:flex;justify-content:space-between;gap:10px;padding:10px 16px;font-size:14px;border-bottom:1px solid #eef1f7}
+.row:last-child{border-bottom:0}
+.row span:first-child{color:var(--mute)}
+.val{font-weight:600;color:var(--navy)}
+.cmds .row{justify-content:flex-start;font-family:var(--mono);font-size:13px}
+.cmds .row::before{content:"\203A";color:var(--red);font-weight:700;margin-right:8px}
+button{font:600 14px var(--font);cursor:pointer;border-radius:6px;transition:.15s}
+#run-btn{width:100%;padding:13px;color:#fff;background:var(--red);border:0;box-shadow:0 2px 0 #8f0b21}
+#run-btn:hover{background:#a80d26}
+#run-btn:disabled{opacity:.7;cursor:progress}
+button:focus-visible,summary:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.bar{height:5px;margin-top:12px;background:#dfe5f3;border-radius:3px;display:none;overflow:hidden}
+.bar i{display:block;height:100%;width:35%;background:var(--blue);animation:scan 1s linear infinite}
+@keyframes scan{from{margin-left:-35%}to{margin-left:100%}}
+.running .bar{display:block}
+.status{margin:14px 0 0;padding:9px 12px;border-radius:6px;font-size:13px;font-weight:600;background:#eaeff9;color:var(--navy)}
+.status.ok{background:#e4f5ea;color:var(--ok)}
+.status.bad{background:#fde8eb;color:var(--red)}
+.stats{margin:6px 2px 0;font-size:12px;color:var(--mute)}
+main{min-width:0}
+.hud{display:flex;flex-wrap:wrap;gap:8px 24px;padding:11px 16px;margin-bottom:18px;background:var(--card);border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--mute)}
+.hud b{color:var(--navy)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#e0a800;margin-right:6px}
+.hud .ok .dot{background:var(--ok)}
+.hud .bad .dot{background:var(--red)}
+.head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+h2{margin:0;font-size:18px;color:var(--navy);padding-left:10px;border-left:4px solid var(--red)}
+.tools button{padding:6px 12px;margin-left:8px;font-size:13px;color:var(--navy);background:#fff;border:1px solid var(--navy)}
+.tools button:hover{background:var(--navy);color:#fff}
+details{background:var(--card);border:1px solid var(--line);border-radius:8px;margin-bottom:12px;overflow:hidden}
+details[open]{border-color:var(--blue)}
+summary{cursor:pointer;list-style:none;padding:13px 16px;font-family:var(--mono);font-size:14px;font-weight:700;color:var(--navy);display:flex;gap:10px;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"\25B8";color:var(--red)}
+details[open] summary::before{content:"\25BE"}
+summary .meta{margin-left:auto;font:400 12px var(--font);color:var(--mute)}
+summary:hover{background:#f5f7fc}
+.out{position:relative;border-top:1px solid var(--line);background:#0c1a3d}
+.copy{position:absolute;top:8px;right:12px;padding:4px 10px;font-size:12px;color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.4);z-index:2}
+.copy:hover{background:#fff;color:var(--navy)}
+pre{margin:0;padding:14px 0 18px;font:13px/1.55 var(--mono);color:#e4ebfb;overflow:auto;max-height:520px;counter-reset:ln}
+.ln{display:block;padding:0 80px 0 56px;position:relative;white-space:pre;min-height:1.55em}
+.ln::before{counter-increment:ln;content:counter(ln);position:absolute;left:0;width:44px;text-align:right;color:#6f82b3}
+.ln:hover{background:rgba(255,255,255,.06)}
+.ip{color:#7fc4ff}.up{color:#6ee79a}.dn{color:#ff8a98}.kw{color:#ffd77a}
+.error{border:1px solid var(--red);border-left:5px solid var(--red);background:#fde8eb;color:#8f0b21;padding:14px 18px;margin-bottom:14px;border-radius:6px;overflow-wrap:anywhere}
+.error::before{content:"Connection error: ";font-weight:700}
+.empty{padding:28px;text-align:center;color:var(--mute);background:var(--card);border:1px dashed var(--line);border-radius:8px}
+footer{text-align:center;padding:18px;font-size:12px;color:var(--mute)}
+@media(max-width:860px){.wrap{grid-template-columns:1fr;padding:14px}.top .sys{display:none}.ln{padding-right:14px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div class="crest" aria-hidden="true"></div>
+    <div>
+      <h1>Holy Cross of Davao College</h1>
+      <p>Ex Fide Ad Veritatem &middot; From Faith to Truth</p>
+    </div>
+    <div class="sys"><b>Router Diagnostics</b>Network Laboratory Portal</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <form class="side" method="post" id="run-form">
+    <div class="card">
+      <h3>Device</h3>
+      <div class="row"><span>Name</span><span class="val">{{ device.name }}</span></div>
+      <div class="row"><span>Address</span><span class="val">{{ device.address }}</span></div>
+      <div class="row"><span>Port</span><span class="val">{{ device.port }}</span></div>
+      <div class="row"><span>Protocol</span><span class="val">{{ device.protocol }}</span></div>
+    </div>
+
+    <div class="card cmds">
+      <h3>Commands to run</h3>
+      {% for cmd in commands %}<div class="row">{{ cmd }}</div>{% endfor %}
+    </div>
+
+    <button type="submit" id="run-btn">Run diagnostics</button>
+    <div class="bar"><i></i></div>
+
+    {% if error %}
+      <p class="status bad">Connection failed</p>
+    {% elif results %}
+      <p class="status ok">{{ results|length }} command{{ '' if results|length == 1 else 's' }} completed</p>
+      <p class="stats">Elapsed {{ total }}s</p>
+    {% else %}
+      <p class="status">Ready to run</p>
+    {% endif %}
+  </form>
+
+  <main>
+    <div class="hud">
+      <span>UTC <b id="clock">--:--:--</b></span>
+      <span>Target <b>{{ device.address }}:{{ device.port }}</b></span>
+      {% if error %}<span class="bad"><i class="dot"></i><b>Link down</b></span>
+      {% elif results %}<span class="ok"><i class="dot"></i><b>Link OK</b></span>
+      {% else %}<span><i class="dot"></i><b>Standby</b></span>{% endif %}
+      <span>Mode <b>Read-only</b></span>
+    </div>
+
+    <div class="head">
+      <h2>Results</h2>
+      {% if results %}
+      <div class="tools">
+        <button type="button" id="expand">Expand all</button>
+        <button type="button" id="collapse">Collapse all</button>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if error %}<div class="error" role="alert">{{ error }}</div>{% endif %}
+
+    {% if results %}
+      {% for cmd, output in results.items() %}
+      <details>
+        <summary>{{ cmd }}<span class="meta">{{ output.splitlines()|length }} lines / {{ timings[cmd] }}s</span></summary>
+        <div class="out">
+          <button type="button" class="copy">Copy</button>
+          <pre>{% for line in output.splitlines() %}<span class="ln">{{ line }}</span>{% endfor %}</pre>
+        </div>
+      </details>
+      {% endfor %}
+    {% elif not error %}
+      <p class="empty">No output yet. Click <b>Run diagnostics</b> to connect to the router.</p>
+    {% endif %}
+  </main>
+</div>
+
+<footer>&copy; Holy Cross of Davao College &middot; Network Automation Lab</footer>
+
+<script>
+(function () {
+  var clock = document.getElementById("clock");
+  function tick() { clock.textContent = new Date().toISOString().substr(11, 8); }
+  tick(); setInterval(tick, 1000);
+
+  function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  document.querySelectorAll(".ln").forEach(function (el) {
+    var h = esc(el.textContent);
+    h = h.replace(/\b(\d{1,3}(?:\.\d{1,3}){3})\b/g, '<span class="ip">$1</span>')
+         .replace(/\b(administratively down|down)\b/gi, '<span class="dn">$1</span>')
+         .replace(/\b(up)\b/g, '<span class="up">$1</span>')
+         .replace(/\b(hostname|interface|version|uptime)\b/gi, '<span class="kw">$1</span>');
+    el.innerHTML = h;
+  });
+
+  function setAll(v) { document.querySelectorAll("details").forEach(function (d) { d.open = v; }); }
+  var ex = document.getElementById("expand"), co = document.getElementById("collapse");
+  if (ex) ex.onclick = function () { setAll(true); };
+  if (co) co.onclick = function () { setAll(false); };
+  document.querySelectorAll(".copy").forEach(function (b) {
+    b.onclick = function () {
+      var t = b.parentNode.querySelector("pre").innerText;
+      (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(
+        function () { b.textContent = "Copied"; },
+        function () { b.textContent = "Press Ctrl+C"; });
+      setTimeout(function () { b.textContent = "Copy"; }, 1500);
+    };
+  });
+
+  var form = document.getElementById("run-form");
+  form.addEventListener("submit", function () {
+    var btn = document.getElementById("run-btn");
+    btn.disabled = true; btn.textContent = "Connecting...";
+    form.classList.add("running");
+  });
+})();
+</script>
+</body>
+</html>
